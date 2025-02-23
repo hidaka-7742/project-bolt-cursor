@@ -2,13 +2,7 @@
 
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
-
-interface Location {
-  column: string;
-  position: string;
-  level: string;
-  cases: number;
-}
+import { Location } from '@/types/location';
 
 export interface Product {
   code: string;

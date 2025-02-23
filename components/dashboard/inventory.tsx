@@ -10,12 +10,7 @@ import { ArrowDownRight, ArrowUpRight, MoveRight, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProductStore } from "@/lib/store";
-
-interface Location {
-  column: string;
-  position: string;
-  level: string;
-}
+import { Location } from '@/types/location';  // 型定義ファイルのパスは適宜調整してください
 
 export function Inventory() {
   const { toast } = useToast();
@@ -80,7 +75,8 @@ export function Inventory() {
         location = {
           column: selectedInboundColumn,
           position: selectedInboundPosition,
-          level: selectedInboundLevel
+          level: selectedInboundLevel,
+          cases: inboundCases
         };
         cases = inboundCases;
         break;
@@ -99,7 +95,8 @@ export function Inventory() {
         location = {
           column: selectedOutboundColumn,
           position: selectedOutboundPosition,
-          level: selectedOutboundLevel
+          level: selectedOutboundLevel,
+          cases: outboundCases
         };
         cases = outboundCases;
         break;
@@ -119,7 +116,8 @@ export function Inventory() {
         location = {
           column: selectedMoveFromColumn,
           position: selectedMoveFromPosition,
-          level: selectedMoveFromLevel
+          level: selectedMoveFromLevel,
+          cases: moveCases
         };
         cases = moveCases;
         break;
@@ -165,7 +163,12 @@ export function Inventory() {
         type: 'inbound',
         cases,
         quantity: cases * product.quantityPerCase,
-        toLocation: location
+        toLocation: {
+          column: selectedInboundColumn,
+          position: selectedInboundPosition,
+          level: selectedInboundLevel,
+          cases: inboundCases
+        }
       });
 
     } else if (type === 'outbound') {
@@ -210,7 +213,12 @@ export function Inventory() {
         cases,
         quantity: cases * product.quantityPerCase,
         fromLocation: location,
-        toLocation: location
+        toLocation: {
+          column: selectedOutboundColumn,
+          position: selectedOutboundPosition,
+          level: selectedOutboundLevel,
+          cases: outboundCases
+        }
       });
 
     } else if (type === 'move') {
@@ -274,7 +282,8 @@ export function Inventory() {
         toLocation: {
           column: selectedMoveToColumn,
           position: selectedMoveToPosition,
-          level: selectedMoveToLevel
+          level: selectedMoveToLevel,
+          cases: moveCases
         }
       });
     }
