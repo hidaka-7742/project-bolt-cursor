@@ -10,7 +10,7 @@ import { ArrowDownRight, ArrowUpRight, MoveRight, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProductStore } from "@/lib/store";
-import { Location } from '@/types/location';  // 型定義ファイルのパスは適宜調整してください
+import { Location } from '@/types/location';
 
 export function Inventory() {
   const { toast } = useToast();

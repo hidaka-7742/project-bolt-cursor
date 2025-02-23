@@ -1,65 +1,63 @@
 "use client"
 
 import { PostgrestError } from '@supabase/supabase-js';
-import { errorMessages } from './error-messages';
+import { errorMessages as databaseErrorMessages } from './error-messages';
+
+// 操作の型を定義
+type Operation = 'create' | 'update' | 'delete' | 'fetch';
+type Resource = 'products' | 'locations' | 'shelf_configs' | 'inventory_history';
+
+interface ErrorContext {
+  operation: Operation;
+  resource: Resource;
+}
+
+// リソース別のエラーメッセージを定義
+const resourceErrorMessages = {
+  products: {
+    create: "商品の登録に失敗しました。",
+    update: "商品情報の更新に失敗しました。",
+    delete: "商品の削除に失敗しました。",
+    fetch: "商品データの取得に失敗しました。",
+    duplicate_code: "この商品コードは既に使用されています。",
+    invalid_quantity: "数量は0より大きい値を入力してください。",
+    invalid_minimum_stock: "最小在庫数は0以上の値を入力してください。"
+  },
+  locations: {
+    create: "保管場所の登録に失敗しました。",
+    update: "保管場所の更新に失敗しました。",
+    delete: "保管場所の削除に失敗しました。",
+    fetch: "保管場所データの取得に失敗しました。"
+  },
+  shelf_configs: {
+    create: "棚設定の登録に失敗しました。",
+    update: "棚設定の更新に失敗しました。",
+    delete: "棚設定の削除に失敗しました。",
+    fetch: "棚設定データの取得に失敗しました。"
+  },
+  inventory_history: {
+    create: "在庫履歴の登録に失敗しました。",
+    update: "在庫履歴の更新に失敗しました。",
+    delete: "在庫履歴の削除に失敗しました。",
+    fetch: "在庫履歴データの取得に失敗しました。"
+  }
+} as const;
 
 interface ErrorDetails {
   title: string;
   description: string;
 }
 
-export function handleDatabaseError(
-  error: PostgrestError | Error | unknown,
-  context: {
-    operation: 'create' | 'update' | 'delete' | 'fetch';
-    resource: 'products' | 'locations' | 'shelf_configs' | 'inventory_history';
-  }
-): ErrorDetails {
-  // PostgrestErrorの場合
-  if (error instanceof Object && 'code' in error) {
-    const pgError = error as PostgrestError;
-    
-    // 一般的なデータベースエラー
-    switch (pgError.code) {
-      case '23505': // unique_violation
-        return {
-          title: "一意制約エラー",
-          description: errorMessages.unique_violation
-        };
-      case '23503': // foreign_key_violation
-        return {
-          title: "外部キー制約エラー",
-          description: errorMessages.foreign_key_violation
-        };
-      case '23514': // check_violation
-        return {
-          title: "チェック制約エラー",
-          description: errorMessages.check_violation
-        };
-      case '23502': // not_null_violation
-        return {
-          title: "NULL制約エラー",
-          description: errorMessages.not_null_violation
-        };
-      case '42501': // insufficient_privilege
-        return {
-          title: "権限エラー",
-          description: errorMessages.unauthorized
-        };
-    }
-  }
-
-  // ネットワークエラーの場合
-  if (error instanceof Error && error.name === 'NetworkError') {
-    return {
-      title: "ネットワークエラー",
-      description: errorMessages.network
-    };
-  }
-
-  // リソース固有のエラーメッセージを返す
-  return {
+export function handleDatabaseError(error: unknown, context: ErrorContext): ErrorDetails {
+  const defaultError = {
     title: "エラー",
-    description: errorMessages[context.resource][context.operation]
+    description: resourceErrorMessages[context.resource][context.operation]
   };
+
+  if (error instanceof Error) {
+    // エラー固有の処理をここに追加
+    return defaultError;
+  }
+
+  return defaultError;
 }
