@@ -325,17 +325,37 @@ export function ShelfView() {
     );
   }
 
-  // データ取得関数を追加
+  // データ取得関数を修正
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select('*')
+        .select(`
+          *,
+          locations (
+            column,
+            position,
+            level,
+            cases
+          )
+        `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setProducts(data || []);
+      if (productsError) throw productsError;
+
+      // データを正しい形式に変換
+      const formattedProducts = productsData.map(product => ({
+        code: product.code,
+        name: product.name,
+        quantityPerCase: product.quantity_per_case,
+        totalCases: product.total_cases,
+        totalQuantity: product.total_quantity,
+        minimumStock: product.minimum_stock,
+        locations: product.locations || []
+      }));
+
+      setProducts(formattedProducts);
     } catch (err) {
       console.error('Error fetching products:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch products'));
@@ -347,19 +367,21 @@ export function ShelfView() {
   const fetchShelfConfigs = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      const { data: configsData, error: configsError } = await supabase
         .from('shelf_configs')
         .select('*')
         .order('column', { ascending: true });
 
-      if (error) throw error;
-      const configsMap = (data || []).reduce((acc, config) => ({
+      if (configsError) throw configsError;
+
+      const configsMap = (configsData || []).reduce((acc, config) => ({
         ...acc,
         [config.column]: {
           positions: config.positions,
           levels: config.levels
         }
       }), {});
+
       setShelfConfigs(configsMap);
     } catch (err) {
       console.error('Error fetching shelf configs:', err);
