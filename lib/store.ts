@@ -35,6 +35,7 @@ interface ProductStore {
   history: InventoryHistory[];
   shelfConfigs: Record<string, ShelfConfig>;
   setProducts: (products: Product[]) => void;
+  setShelfConfigs: (configs: Record<string, ShelfConfig>) => void;
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (code: string, product: Partial<Product>) => Promise<void>;
   deleteProduct: (code: string) => Promise<void>;
@@ -48,6 +49,7 @@ export const useProductStore = create<ProductStore>((set) => ({
   history: [],
   shelfConfigs: {},
   setProducts: (products) => set({ products }),
+  setShelfConfigs: (configs) => set({ shelfConfigs: configs }),
   addProduct: async (product) => {
     try {
       const { error } = await supabase

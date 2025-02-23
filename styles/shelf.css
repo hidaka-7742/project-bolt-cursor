@@ -1,0 +1,14 @@
+/* 縦書きテキストのスタイル */
+.writing-vertical-rl {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+}
+
+/* 番目の表示コンテナ */
+.position-number-container {
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+} 

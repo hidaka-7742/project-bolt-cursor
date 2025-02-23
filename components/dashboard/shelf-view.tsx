@@ -13,9 +13,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 export function ShelfView() {
-  const { products, updateProduct, addHistory, shelfConfigs } = useProductStore();
+  const { products, updateProduct, addHistory, shelfConfigs, setProducts, setShelfConfigs } = useProductStore();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -34,6 +35,8 @@ export function ShelfView() {
   const contentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   // 検索結果の取得
   const searchResults = searchTerm ? products.filter(product =>
@@ -99,38 +102,33 @@ export function ShelfView() {
   // 列を取得（設定に基づく）
   const getColumns = () => Object.keys(shelfConfigs).sort();
 
-  // 特定の場所の在庫情報を取得（レベル4以上をレベル3に合算）
+  // 特定の場所の在庫情報を取得
   const getLocationStock = (column: string, position: number, level: number) => {
     const stockItems = products.filter(product =>
-      product.locations.some(loc => {
-        const locLevel = parseInt(loc.level);
-        return loc.column === column &&
-               parseInt(loc.position) === position &&
-               ((level === 3 && locLevel >= 3) || // レベル3の場合は3以上を全て含める
-                (level < 3 && locLevel === level)); // レベル1,2の場合は完全一致
-      })
+      product.locations.some(loc =>
+        loc.column === column &&
+        parseInt(loc.position) === position &&
+        parseInt(loc.level) === level
+      )
     );
 
     return stockItems.map(product => {
-      const locations = product.locations.filter(loc => {
-        const locLevel = parseInt(loc.level);
-        return loc.column === column &&
-               parseInt(loc.position) === position &&
-               ((level === 3 && locLevel >= 3) || // レベル3の場合は3以上を全て含める
-                (level < 3 && locLevel === level)); // レベル1,2の場合は完全一致
-      });
+      const location = product.locations.find(loc =>
+        loc.column === column &&
+        parseInt(loc.position) === position &&
+        parseInt(loc.level) === level
+      );
 
-      const totalCases = locations.reduce((sum, loc) => sum + loc.cases, 0);
       return {
         code: product.code,
         name: product.name,
-        cases: totalCases,
-        quantity: totalCases * product.quantityPerCase
+        cases: location?.cases || 0,
+        quantity: (location?.cases || 0) * product.quantityPerCase
       };
     });
   };
 
-  // 場所の状態を判定（空き・通常・満杯）
+  // 場所の状態を判定
   const getLocationStatus = (items: Array<{ cases: number }>) => {
     if (items.length === 0) return "empty";
     const totalCases = items.reduce((sum, item) => sum + item.cases, 0);
@@ -144,13 +142,11 @@ export function ShelfView() {
     return products.some(product => 
       (product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
        product.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      product.locations.some(loc => {
-        const locLevel = parseInt(loc.level);
-        return loc.column === column &&
-               parseInt(loc.position) === position &&
-               ((level === 3 && locLevel >= 3) ||
-                (level < 3 && locLevel === level));
-      })
+      product.locations.some(loc =>
+        loc.column === column &&
+        parseInt(loc.position) === position &&
+        parseInt(loc.level) === level
+      )
     );
   };
 
@@ -263,6 +259,170 @@ export function ShelfView() {
       </div>
     </div>
   ));
+
+  // ShelfCellコンポーネントを追加
+  function ShelfCell({
+    column,
+    position,
+    level,
+    items,
+    status,
+    isHighlighted,
+    isSelected,
+    onClick
+  }: {
+    column: string;
+    position: number;
+    level: number;
+    items: Array<{ name: string; cases: number }>;
+    status: "empty" | "normal" | "full";
+    isHighlighted: boolean;
+    isSelected: boolean;
+    onClick: () => void;
+  }) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={cn(
+                "shelf-cell",
+                `shelf-cell-${status}`,
+                isHighlighted && "shelf-cell-highlighted",
+                isSelected && "shelf-cell-selected"
+              )}
+              onClick={onClick}
+            >
+              <div className="writing-vertical-rl position-number-container">
+                {position}番目 L{level}
+              </div>
+              {items.length > 0 && (
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 text-xs truncate">
+                    {items[0].name}
+                  </div>
+                  <div className="text-xs">
+                    {items[0].cases}箱
+                  </div>
+                </div>
+              )}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div>
+              <div className="font-bold">
+                {column}列 {position}番目 レベル{level}
+              </div>
+              {items.map((item, i) => (
+                <div key={i} className="text-sm">
+                  {item.name}: {item.cases}箱
+                </div>
+              ))}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  // データ取得関数を追加
+  const fetchProducts = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch products'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchShelfConfigs = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('shelf_configs')
+        .select('*')
+        .order('column', { ascending: true });
+
+      if (error) throw error;
+      const configsMap = (data || []).reduce((acc, config) => ({
+        ...acc,
+        [config.column]: {
+          positions: config.positions,
+          levels: config.levels
+        }
+      }), {});
+      setShelfConfigs(configsMap);
+    } catch (err) {
+      console.error('Error fetching shelf configs:', err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch shelf configs'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 初期データ取得
+  useEffect(() => {
+    fetchProducts();
+    fetchShelfConfigs();
+  }, []);
+
+  // リアルタイム更新のサブスクリプション
+  useEffect(() => {
+    const productsChannel = supabase
+      .channel('products')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'products'
+      }, () => {
+        fetchProducts();
+      })
+      .subscribe();
+
+    const configsChannel = supabase
+      .channel('shelf_configs')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'shelf_configs'
+      }, () => {
+        fetchShelfConfigs();
+      })
+      .subscribe();
+
+    return () => {
+      productsChannel.unsubscribe();
+      configsChannel.unsubscribe();
+    };
+  }, []);
+
+  if (error) {
+    return (
+      <div className="p-4 text-red-600">
+        エラーが発生しました: {error.message}
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-[600px] bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -390,7 +550,7 @@ export function ShelfView() {
         </Card>
       )}
 
-      {/* 棚配置図 */}
+      {/* 棚表示 */}
       <Card>
         <CardHeader>
           <CardTitle>棚配置図</CardTitle>
@@ -432,10 +592,7 @@ export function ShelfView() {
                         ))}
                       </div>
                     </div>
-                    {/* 各番目の区切り線 */}
-                    {index < maxPositions - 1 && (
-                      <Separator className="my-2" />
-                    )}
+                    {index < maxPositions - 1 && <Separator className="my-2" />}
                   </div>
                 ))}
               </div>
@@ -444,90 +601,40 @@ export function ShelfView() {
             {/* メインコンテンツ（スクロール可能） */}
             <div ref={contentRef} className="absolute left-32 right-0 top-8 bottom-0 overflow-auto">
               <div className="inline-flex gap-2 p-2 min-w-full">
-                {getColumns().map((column) => (
+                {getColumns().map(column => (
                   <div key={column} className="flex-none w-32">
                     <div className="space-y-2">
-                      {Array.from({ length: shelfConfigs[column].positions }, (_, i) => i + 1).map((position, index) => (
+                      {Array.from({ length: shelfConfigs[column].positions }, (_, position) => (
                         <div key={position}>
                           <div className="grid grid-cols-1 gap-1">
                             {SHELF_LEVELS.map((level) => {
-                              const items = getLocationStock(column, position, level);
+                              const items = getLocationStock(column, position + 1, level);
                               const status = getLocationStatus(items);
-                              const isHighlighted = shouldHighlight(column, position, level);
+                              const isHighlighted = shouldHighlight(column, position + 1, level);
                               const isSelected = selectedLocation?.column === column &&
-                                               selectedLocation?.position === position &&
+                                               selectedLocation?.position === position + 1 &&
                                                selectedLocation?.level === level;
 
-                              // レベルが設定された最大レベルを超える場合は表示しない
-                              if (level < 3 && level > shelfConfigs[column].levels) {
-                                return null;
-                              }
-
                               return (
-                                <TooltipProvider key={level}>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div
-                                        className={cn(
-                                          "h-12 rounded-md border cursor-pointer transition-all p-1",
-                                          "hover:border-blue-500 hover:shadow-md",
-                                          status === "empty" && "bg-gray-100",
-                                          status === "normal" && "bg-green-100",
-                                          status === "full" && "bg-orange-100",
-                                          isHighlighted && "ring-2 ring-blue-500",
-                                          isSelected && "ring-2 ring-blue-600 border-blue-600"
-                                        )}
-                                        onClick={() => setSelectedLocation({ column, position, level })}
-                                      >
-                                        {items.length > 0 && (
-                                          <div className="flex items-center justify-between h-full">
-                                            <div className="flex-1 text-xs overflow-hidden">
-                                              {items.length === 1 ? (
-                                                <div className="truncate">
-                                                  {items[0].name}
-                                                </div>
-                                              ) : (
-                                                <div className="flex items-center space-x-1">
-                                                  <Package className="h-3 w-3" />
-                                                  <span>{items.length}商品</span>
-                                                </div>
-                                              )}
-                                            </div>
-                                            <div className="text-xs text-gray-600">
-                                              {items.reduce((sum, item) => sum + item.cases, 0)}箱
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <div className="text-sm">
-                                        <div className="font-bold mb-1">
-                                          {column}列 {position}番目 レベル{level}
-                                          {level === 3 && "以上"}
-                                        </div>
-                                        {items.length > 0 ? (
-                                          <div className="space-y-1">
-                                            {items.map((item, index) => (
-                                              <div key={index}>
-                                                {item.name}: {item.cases}箱 ({item.quantity}個)
-                                              </div>
-                                            ))}
-                                          </div>
-                                        ) : (
-                                          <div>空き</div>
-                                        )}
-                                      </div>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                <ShelfCell
+                                  key={level}
+                                  column={column}
+                                  position={position + 1}
+                                  level={level}
+                                  items={items}
+                                  status={status}
+                                  isHighlighted={isHighlighted}
+                                  isSelected={isSelected}
+                                  onClick={() => setSelectedLocation({
+                                    column,
+                                    position: position + 1,
+                                    level
+                                  })}
+                                />
                               );
                             })}
                           </div>
-                          {/* 各番目の区切り線 */}
-                          {index < shelfConfigs[column].positions - 1 && (
-                            <Separator className="my-2" />
-                          )}
+                          <Separator className="my-2" />
                         </div>
                       ))}
                     </div>

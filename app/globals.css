@@ -70,12 +70,11 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
-}
 
-@layer base {
   * {
-    @apply border-border;
+    @apply border-[#e5e7eb];
   }
+  
   body {
     @apply bg-background text-foreground;
   }
@@ -96,4 +95,65 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+@layer utilities {
+  .writing-vertical-rl {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+  }
+
+  .position-number-container {
+    width: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+  }
+}
+
+/* 棚表示のスタイル */
+@layer components {
+  /* 縦書きのスタイル */
+  .writing-vertical-rl {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  /* 番目の表示用のコンテナ */
+  .position-number-container {
+    width: 1.5rem;
+    min-width: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 棚のセルスタイル */
+  .shelf-cell {
+    @apply h-12 rounded-md border cursor-pointer transition-all p-1;
+    @apply hover:border-blue-500 hover:shadow-md;
+  }
+
+  .shelf-cell-empty {
+    @apply bg-gray-100;
+  }
+
+  .shelf-cell-normal {
+    @apply bg-green-100;
+  }
+
+  .shelf-cell-full {
+    @apply bg-orange-100;
+  }
+
+  .shelf-cell-selected {
+    @apply ring-2 ring-blue-600 border-blue-600;
+  }
+
+  .shelf-cell-highlighted {
+    @apply ring-2 ring-blue-500;
+  }
 }
