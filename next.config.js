@@ -7,7 +7,9 @@ const nextConfig = {
   images: { unoptimized: true },
   experimental: {
     serverActions: true
-  }
+  },
+  distDir: '.next',
+  output: 'standalone',
 };
 
 module.exports = nextConfig;

@@ -8,5 +8,11 @@
   "env": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://exlnvykezzmgvmvodicv.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4bG52eWtlenptZ3Ztdm9kaWN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAzMTI3OTksImV4cCI6MjA1NTg4ODc5OX0.-Z_-EbaCcd-JJXzMeH6GqmF75OFI-ECiumfLgfH5FYw"
-  }
+  },
+  "builds": [
+    {
+      "src": "next.config.js",
+      "use": "@vercel/next"
+    }
+  ]
 }
